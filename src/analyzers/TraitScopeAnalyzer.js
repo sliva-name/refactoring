@@ -133,38 +133,37 @@ export class TraitScopeAnalyzer {
   suggestTraits(filePath, className, relations, code, issues) {
     const totalRelations = relations.reduce((sum, r) => sum + r.count, 0);
     
-    if (totalRelations > 2) {
+    // Предлагаем trait для relations только если их много и нет кастомного trait
+    const hasCustomTrait = /use\s+\w+Trait;/.test(code);
+    
+    if (totalRelations > 5 && !hasCustomTrait) {
       issues.push({
         type: 'suggest_trait',
         severity: 'info',
-        message: 'Consider extracting relations into a reusable trait',
+        message: `Model has ${totalRelations} relationships - consider extracting into a reusable trait`,
         filePath,
         line: 1,
         suggestion: 'Create a trait with relationship definitions for better code organization'
       });
     }
 
-    if (code.includes('SoftDeletes') || code.includes('softDeletes')) {
+    // SoftDeletes - НЕ предлагать если уже используется
+    const hasSoftDeletesTrait = /use\s+SoftDeletes;/.test(code);
+    const hasSoftDeletesColumn = code.includes('softDeletes()') || code.includes('deleted_at');
+    
+    if (hasSoftDeletesColumn && !hasSoftDeletesTrait) {
       issues.push({
         type: 'suggest_trait',
         severity: 'minor',
-        message: 'Consider creating a SoftDeletesTrait for soft delete behavior',
+        message: 'Model has soft delete column but not using SoftDeletes trait',
         filePath,
         line: 1,
-        suggestion: 'Extract soft delete logic into a reusable trait'
+        suggestion: 'Add "use SoftDeletes;" trait from Illuminate\\Database\\Eloquent\\SoftDeletes'
       });
     }
 
-    if (code.includes('created_at') && code.includes('updated_at')) {
-      issues.push({
-        type: 'suggest_trait',
-        severity: 'info',
-        message: 'Consider creating a TimestampsTrait for timestamp handling',
-        filePath,
-        line: 1,
-        suggestion: 'Extract timestamp logic into a reusable trait'
-      });
-    }
+    // Timestamps - это встроено в Laravel, не нужен отдельный trait
+    // Убираем это предложение
   }
 
   capitalize(str) {

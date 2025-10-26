@@ -26,6 +26,10 @@ export class ArchitectureAnalyzer {
     const tree = this.parser.parse(code);
     const issues = [];
 
+    // Проверки файла целиком (ОДИН РАЗ!)
+    this.checkCommonArchitectureIssues(code, filePath, issues);
+
+    // Рекурсивный обход AST для методов и классов
     this.analyzeArchitecture(code, filePath, tree.rootNode, issues);
 
     return issues;
@@ -37,6 +41,18 @@ export class ArchitectureAnalyzer {
     const isService = filePath.includes('Services/');
     const isRepository = filePath.includes('Repositories/');
 
+    // Проверки для конкретных типов файлов (НЕ рекурсивно, только для class_declaration)
+    if (node.type === 'class_declaration') {
+      if (isService) {
+        this.analyzeService(code, filePath, node, issues);
+      }
+
+      if (isRepository) {
+        this.analyzeRepository(code, filePath, node, issues);
+      }
+    }
+
+    // Проверки для методов (рекурсивно)
     if (isController) {
       this.analyzeController(code, filePath, node, issues);
     }
@@ -45,16 +61,7 @@ export class ArchitectureAnalyzer {
       this.analyzeModel(code, filePath, node, issues);
     }
 
-    if (isService) {
-      this.analyzeService(code, filePath, node, issues);
-    }
-
-    if (isRepository) {
-      this.analyzeRepository(code, filePath, node, issues);
-    }
-
-    this.checkCommonArchitectureIssues(code, filePath, node, issues);
-
+    // Рекурсия для обхода детей
     for (const child of node.children) {
       this.analyzeArchitecture(code, filePath, child, issues);
     }
@@ -98,9 +105,16 @@ export class ArchitectureAnalyzer {
         });
       }
 
-      if (!methodText.includes('return') || 
+      // Не проверяем __construct и другие служебные методы
+      const isServiceMethod = methodName === '__construct' || 
+                            methodName === '__destruct' ||
+                            methodName === 'middleware' ||
+                            methodName.startsWith('validate');
+      
+      if (!isServiceMethod && 
+          (!methodText.includes('return') || 
           (!methodText.includes('view') && !methodText.includes('json') && 
-           !methodText.includes('redirect') && !methodText.includes('response'))) {
+           !methodText.includes('redirect') && !methodText.includes('response')))) {
         issues.push({
           type: 'missing_response',
           severity: 'info',
@@ -114,6 +128,20 @@ export class ArchitectureAnalyzer {
   }
 
   analyzeModel(code, filePath, node, issues) {
+    // Проверяем $fillable/$guarded только один раз для класса (не для каждого метода!)
+    if (node.type === 'class_declaration') {
+      if (!code.includes('protected $fillable') && !code.includes('protected $guarded')) {
+        issues.push({
+          type: 'missing_fillable',
+          severity: 'major',
+          message: 'Model is missing $fillable or $guarded property',
+          filePath,
+          line: 1,
+          suggestion: 'Add protected $fillable array to prevent mass assignment vulnerabilities'
+        });
+      }
+    }
+
     if (node.type === 'method_declaration') {
       const methodText = node.text;
 
@@ -138,17 +166,6 @@ export class ArchitectureAnalyzer {
           suggestion: 'Prefer Eloquent query builder methods'
         });
       }
-    }
-
-    if (!code.includes('protected $fillable') && !code.includes('protected $guarded')) {
-      issues.push({
-        type: 'missing_fillable',
-        severity: 'major',
-        message: 'Model is missing $fillable or $guarded property',
-        filePath,
-        line: 1,
-        suggestion: 'Add protected $fillable array to prevent mass assignment vulnerabilities'
-      });
     }
   }
 
@@ -182,9 +199,16 @@ export class ArchitectureAnalyzer {
     }
   }
 
-  checkCommonArchitectureIssues(code, filePath, node, issues) {
-    if (code.includes('use Illuminate\\Support\\Facades\\DB;') && 
-        !filePath.includes('Migration')) {
+  checkCommonArchitectureIssues(code, filePath, issues) {
+    // Исключаем migrations, seeders, factories - DB facade там валиден
+    const isExcludedFile = filePath.includes('migrations') || 
+                          filePath.includes('seeders') || 
+                          filePath.includes('factories') ||
+                          filePath.includes('Migration') ||
+                          filePath.includes('Seeder') ||
+                          filePath.includes('Factory');
+    
+    if (code.includes('use Illuminate\\Support\\Facades\\DB;') && !isExcludedFile) {
       const hasCorrectContext = filePath.includes('Services/') || 
                                 filePath.includes('Repositories/') ||
                                 filePath.includes('Models/');
@@ -201,15 +225,26 @@ export class ArchitectureAnalyzer {
       }
     }
 
-    if (code.includes('use Illuminate\\Support\\Facades\\Auth;') && 
-        !filePath.includes('Controller') && !filePath.includes('Middleware')) {
+    // Auth facade валиден в Controller, Middleware, Policy, Gate, некоторых Service
+    const validAuthContexts = [
+      'Controller',
+      'Middleware', 
+      'Policy',
+      'Gate',
+      'AuthService',
+      'NotificationService'
+    ];
+    
+    const isValidAuthContext = validAuthContexts.some(context => filePath.includes(context));
+    
+    if (code.includes('use Illuminate\\Support\\Facades\\Auth;') && !isValidAuthContext) {
       issues.push({
         type: 'global_facade',
         severity: 'minor',
-        message: 'Use of global facade outside controller/middleware',
+        message: 'Use of global facade outside typical contexts (Controller/Middleware/Policy)',
         filePath,
         line: 1,
-        suggestion: 'Inject dependencies through constructor instead of using facades'
+        suggestion: 'Inject dependencies through constructor instead of using facades (unless in Policy/Gate)'
       });
     }
   }

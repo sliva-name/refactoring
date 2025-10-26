@@ -27,16 +27,59 @@ export class MethodSizeAnalyzer {
 
   walkTree(node, code, filePath, issues) {
     if (node.type === 'method_declaration' || node.type === 'function_declaration') {
+      // Исключаем migrations, seeders, factories - там длинные методы нормальны
+      const isExcludedFile = filePath.includes('migrations') || 
+                            filePath.includes('seeders') || 
+                            filePath.includes('factories');
+      
       const methodName = this.getMethodName(node, code);
       const startLine = node.startPosition.row + 1;
       const endLine = node.endPosition.row + 1;
-      const linesCount = endLine - startLine + 1;
+      const totalLines = endLine - startLine + 1;
 
-      if (linesCount > this.maxLines) {
+      // Считаем реальные строки кода (без комментариев и пустых строк)
+      const methodText = node.text;
+      const lines = methodText.split('\n');
+      
+      let actualCodeLines = 0;
+      let inDocBlock = false;
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        
+        // Пропускаем PHPDoc блоки
+        if (trimmed.startsWith('/**')) {
+          inDocBlock = true;
+          continue;
+        }
+        if (inDocBlock) {
+          if (trimmed.endsWith('*/')) {
+            inDocBlock = false;
+          }
+          continue;
+        }
+        
+        // Пропускаем пустые строки и комментарии
+        if (trimmed === '' || 
+            trimmed.startsWith('//') || 
+            trimmed.startsWith('/*')) {
+          continue;
+        }
+        
+        actualCodeLines++;
+      }
+
+      // Используем реальное количество строк кода
+      const linesCount = actualCodeLines;
+      
+      // Для исключенных файлов увеличиваем порог в 3 раза
+      const threshold = isExcludedFile ? this.maxLines * 3 : this.maxLines;
+
+      if (linesCount > threshold) {
         issues.push({
           type: 'method_size',
           severity: 'major',
-          message: `Method "${methodName}" is too long (${linesCount} lines, max recommended: ${this.maxLines})`,
+          message: `Method "${methodName}" is too long (${linesCount} code lines, ${totalLines} total, max recommended: ${this.maxLines})`,
           filePath,
           line: startLine,
           suggestion: 'Consider breaking down this method into smaller, focused methods following Single Responsibility Principle',
@@ -44,7 +87,8 @@ export class MethodSizeAnalyzer {
             methodName,
             startLine,
             endLine,
-            linesCount,
+            linesCount: linesCount,
+            totalLines: totalLines,
             suggestedLines: this.maxLines
           }
         });

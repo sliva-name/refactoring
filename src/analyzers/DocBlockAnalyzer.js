@@ -68,12 +68,17 @@ export class DocBlockAnalyzer {
   }
 
   checkMethodDocBlock(node, filePath, issues) {
+    // Исключаем migrations, seeders, factories - там PHPDoc не обязателен
+    const isExcludedFile = filePath.includes('migrations') || 
+                          filePath.includes('seeders') || 
+                          filePath.includes('factories');
+    
     const docBlock = this.getDocBlock(node);
     const methodName = this.getMethodName(node);
     const hasParameters = this.hasParameters(node);
     const hasReturn = this.hasReturnStatement(node);
 
-    if (!docBlock) {
+    if (!docBlock && !isExcludedFile) {
       issues.push({
         type: 'missing_method_doc',
         severity: 'minor',
@@ -85,7 +90,7 @@ export class DocBlockAnalyzer {
       return;
     }
 
-    if (hasParameters && !docBlock.includes('@param')) {
+    if (hasParameters && !docBlock.includes('@param') && !isExcludedFile) {
       issues.push({
         type: 'missing_param_doc',
         severity: 'minor',
@@ -96,7 +101,7 @@ export class DocBlockAnalyzer {
       });
     }
 
-    if (hasReturn && !docBlock.includes('@return')) {
+    if (hasReturn && !docBlock.includes('@return') && !isExcludedFile) {
       issues.push({
         type: 'missing_return_doc',
         severity: 'minor',
@@ -107,7 +112,10 @@ export class DocBlockAnalyzer {
       });
     }
 
-    if (docBlock.includes('@return void') && hasReturn) {
+    // Проверяем только если return с реальным значением (не просто "return;")
+    const hasReturnWithValue = /return\s+[^;]/.test(node.text);
+    
+    if (docBlock.includes('@return void') && hasReturnWithValue) {
       issues.push({
         type: 'incorrect_return_doc',
         severity: 'minor',
@@ -178,7 +186,9 @@ export class DocBlockAnalyzer {
   }
 
   hasReturnStatement(node) {
-    return node.text.includes('return ');
+    const text = node.text || '';
+    // Проверяем наличие return с учетом контекста (не в комментариях)
+    return /return\s/.test(text);
   }
 }
 

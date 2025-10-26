@@ -1,15 +1,21 @@
 import { glob } from 'glob';
 import fs from 'fs/promises';
 import path from 'path';
+import { execSync } from 'child_process';
 
 export class CodeAnalyzer {
-  constructor({ basePath, excludePatterns = [], verbose = false }) {
+  constructor({ basePath, excludePatterns = [], verbose = false, specificFiles = null }) {
     this.basePath = basePath;
     this.excludePatterns = excludePatterns;
     this.verbose = verbose;
+    this.specificFiles = specificFiles;
   }
 
   async findFiles() {
+    if (this.specificFiles && this.specificFiles.length > 0) {
+      return this.specificFiles.filter(file => file.endsWith('.php'));
+    }
+
     const patterns = this.excludePatterns.map(p => `**/${p}/**`);
     const ignore = patterns;
     
@@ -18,6 +24,26 @@ export class CodeAnalyzer {
       ignore: ignore,
       dot: false
     });
+  }
+
+  async findGitChangedFiles(staged = false) {
+    try {
+      const command = staged ? 'git diff --cached --name-only' : 'git diff --name-only';
+      const result = execSync(command, { 
+        cwd: this.basePath,
+        encoding: 'utf-8'
+      });
+      
+      return result
+        .split('\n')
+        .filter(file => file.trim() && file.endsWith('.php'))
+        .map(file => file.trim());
+    } catch (error) {
+      if (this.verbose) {
+        console.warn('Git command failed:', error.message);
+      }
+      return [];
+    }
   }
 
   async readFile(filePath) {

@@ -35,6 +35,11 @@ export class TypeChecker {
 
   checkMethodParameters(node, filePath, issues) {
     const parameters = this.getParameters(node);
+    
+    // Если параметров нет - не проверяем
+    if (parameters.length === 0) {
+      return;
+    }
 
     parameters.forEach((param, index) => {
       const hasType = param.type;
@@ -65,8 +70,13 @@ export class TypeChecker {
 
   checkReturnTypes(node, filePath, issues) {
     const returnType = this.getReturnType(node);
+    
+    // Конструкторы и деструкторы не требуют return type
+    const methodText = node.text || '';
+    const isConstructor = methodText.includes('function __construct') || 
+                          methodText.includes('function __destruct');
 
-    if (!returnType) {
+    if (!returnType && !isConstructor) {
       issues.push({
         type: 'missing_return_type',
         severity: 'major',
@@ -126,21 +136,29 @@ export class TypeChecker {
   }
 
   walkParameters(node, params) {
-    if (node.type === 'parameter' || node.type === 'list_expression') {
+    // Обрабатываем только реальные параметры
+    if (node.type === 'simple_parameter' || node.type === 'property_promotion_parameter') {
       let paramName = null;
       let typeHint = null;
       
       for (const child of node.children) {
-        if (child.type === 'name') paramName = child;
-        if (child.type.includes('type')) typeHint = child;
+        if (child.type === 'variable_name') paramName = child;
+        if (child.type === 'named_type' || child.type === 'primitive_type' || child.type === 'union_type') {
+          typeHint = child;
+        }
       }
 
-      params.push({
-        name: paramName ? paramName.text : 'unknown',
-        type: typeHint ? typeHint.text : null
-      });
+      // Добавляем только если нашли имя параметра (избегаем дубликатов)
+      if (paramName) {
+        params.push({
+          name: paramName.text,
+          type: typeHint ? typeHint.text : null
+        });
+      }
+      return; // Не идем глубже для параметров
     }
 
+    // Продолжаем обход для других узлов
     for (const child of node.children) {
       this.walkParameters(child, params);
     }
