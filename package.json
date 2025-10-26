@@ -1,0 +1,35 @@
+{
+  "name": "laravel-code-improver",
+  "version": "1.0.0",
+  "description": "AI-powered code improvement tool for Laravel projects",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test test/*.js",
+    "wsl": "bash wsl-entry.sh",
+    "check": "node check.js",
+    "example": "node test-example.js"
+  },
+  "keywords": [
+    "laravel",
+    "code-improvement",
+    "php",
+    "refactoring"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "glob": "^10.3.10",
+    "tree-sitter": "0.20.4",
+    "tree-sitter-php": "0.19.0",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "yargs": "^17.7.2",
+    "execa": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6"
+  }
+}
+

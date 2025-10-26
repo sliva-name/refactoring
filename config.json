@@ -1,0 +1,74 @@
+{
+  "version": "1.0.0",
+  "phpVersion": "8.2",
+  "analysisRules": {
+    "methodSize": {
+      "maxLines": 15,
+      "enabled": true
+    },
+    "complexity": {
+      "maxComplexity": 10,
+      "enabled": true
+    },
+    "nesting": {
+      "maxDepth": 4,
+      "enabled": true
+    },
+    "architectural": {
+      "requireServiceLayer": true,
+      "requireRepository": false,
+      "enabled": true
+    },
+    "typeChecking": {
+      "strict": true,
+      "requireReturnTypes": true,
+      "enabled": true
+    },
+    "docBlocks": {
+      "requireForPublic": true,
+      "requireParams": true,
+      "requireReturn": true,
+      "enabled": true
+    }
+  },
+  "excludePatterns": [
+    "vendor/**",
+    "node_modules/**",
+    "tests/**",
+    "storage/**",
+    "bootstrap/**"
+  ],
+  "includePatterns": [
+    "app/**/*.php",
+    "routes/**/*.php"
+  ],
+  "severityLevels": {
+    "critical": ["security", "error", "data_loss"],
+    "major": ["architecture", "performance", "maintainability"],
+    "minor": ["style", "documentation", "code_smell"],
+    "info": ["suggestion", "optimization", "best_practice"]
+  },
+  "tools": {
+    "phpcs": {
+      "enabled": false,
+      "standard": "PSR12",
+      "path": "vendor/bin/phpcs"
+    },
+    "phpmd": {
+      "enabled": false,
+      "rules": "codesize,design,naming",
+      "path": "vendor/bin/phpmd"
+    },
+    "phpstan": {
+      "enabled": false,
+      "level": 5,
+      "path": "vendor/bin/phpstan"
+    }
+  },
+  "report": {
+    "format": "json",
+    "detailed": true,
+    "includeCodeSnippets": false
+  }
+}
+

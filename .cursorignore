@@ -1,0 +1,6 @@
+node_modules/
+code-report.json
+test-report.json
+*.log
+.DS_Store
+

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Laravel Code Improver Configuration",
+  "description": "Configuration file for Laravel Code Improver",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration version"
+    },
+    "analysisRules": {
+      "type": "object",
+      "description": "Analysis rules configuration",
+      "properties": {
+        "methodSize": {
+          "maxLines": { "type": "integer", "default": 15 },
+          "enabled": { "type": "boolean" }
+        },
+        "complexity": {
+          "maxComplexity": { "type": "integer", "default": 10 },
+          "enabled": { "type": "boolean" }
+        }
+      }
+    },
+    "excludePatterns": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
+
