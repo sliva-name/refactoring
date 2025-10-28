@@ -201,10 +201,23 @@ export class NPlusOneDetector {
    */
   hasMissingWith(fullCode, methodText) {
     const hasGetOrAll = methodText.includes('->get()') || methodText.includes('::all()');
-    const hasNoWith = !methodText.includes('->with(');
+    const hasNoWith = !methodText.includes('->with(') && !methodText.includes('::with(');
     const usesRelationships = this.hasRelationshipAccess(methodText);
+    const hasLoop = this.hasLoop(methodText);
 
-    return hasGetOrAll && hasNoWith && usesRelationships;
+    // Не флажим если в методе есть ->with() где-то
+    // (может быть выше по коду, вне цикла)
+    if (methodText.includes('with(')) {
+      return false;
+    }
+
+    // Не флажим если есть eager loading и цикл
+    // Это значит что отношения предзагружены
+    if (hasLoop && hasGetOrAll && !hasNoWith) {
+      return false;
+    }
+
+    return hasGetOrAll && hasNoWith && usesRelationships && hasLoop;
   }
 
   /**

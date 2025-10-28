@@ -29,7 +29,9 @@ export class Reporter {
         type: issue.type,
         severity: issue.severity,
         message: issue.message,
-        suggestion: issue.suggestion
+        suggestion: issue.suggestion,
+        line: issue.line,
+        endLine: issue.endLine
       });
     });
 

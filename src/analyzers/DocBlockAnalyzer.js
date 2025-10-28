@@ -50,7 +50,7 @@ export class DocBlockAnalyzer {
         message: `Class "${className}" is missing PHPDoc comment`,
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Add PHPDoc comment describing the class purpose'
+        endLine: node.endPosition.row + 1,suggestion: 'Add PHPDoc comment describing the class purpose'
       });
       return;
     }
@@ -62,7 +62,7 @@ export class DocBlockAnalyzer {
         message: 'Class is missing @package tag',
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Consider adding @package tag for better organization'
+        endLine: node.endPosition.row + 1,suggestion: 'Consider adding @package tag for better organization'
       });
     }
   }
@@ -85,7 +85,7 @@ export class DocBlockAnalyzer {
         message: `Method "${methodName}" is missing PHPDoc comment`,
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Add PHPDoc comment with @param and @return annotations'
+        endLine: node.endPosition.row + 1,suggestion: 'Add PHPDoc comment with @param and @return annotations'
       });
       return;
     }
@@ -97,7 +97,7 @@ export class DocBlockAnalyzer {
         message: `Method "${methodName}" is missing @param documentation`,
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Add @param tags for each parameter'
+        endLine: node.endPosition.row + 1,suggestion: 'Add @param tags for each parameter'
       });
     }
 
@@ -108,7 +108,7 @@ export class DocBlockAnalyzer {
         message: `Method "${methodName}" is missing @return documentation`,
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Add @return tag describing the return value'
+        endLine: node.endPosition.row + 1,suggestion: 'Add @return tag describing the return value'
       });
     }
 
@@ -122,7 +122,7 @@ export class DocBlockAnalyzer {
         message: `Method "${methodName}" declares @return void but returns a value`,
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Update @return tag to match actual return type'
+        endLine: node.endPosition.row + 1,suggestion: 'Update @return tag to match actual return type'
       });
     }
   }
@@ -137,7 +137,7 @@ export class DocBlockAnalyzer {
         message: 'Property is missing PHPDoc comment',
         filePath,
         line: node.startPosition.row + 1,
-        suggestion: 'Add PHPDoc comment with @var tag'
+        endLine: node.endPosition.row + 1,suggestion: 'Add PHPDoc comment with @var tag'
       });
     }
   }

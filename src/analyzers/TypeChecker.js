@@ -51,6 +51,7 @@ export class TypeChecker {
           message: `Parameter #${index + 1} is missing type hint`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Add type hints for better IDE support and code clarity'
         });
       }
@@ -62,6 +63,7 @@ export class TypeChecker {
           message: `Parameter #${index + 1} uses mixed type`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Consider using more specific types or union types (int|string|null)'
         });
       }
@@ -83,6 +85,7 @@ export class TypeChecker {
         message: 'Method is missing return type declaration',
         filePath,
         line: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
         suggestion: 'Add return type hints for better type safety'
       });
     }
@@ -94,6 +97,7 @@ export class TypeChecker {
         message: 'Return type is mixed',
         filePath,
         line: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
         suggestion: 'Consider using more specific return types'
       });
     }
@@ -112,6 +116,7 @@ export class TypeChecker {
           message: 'Array usage without type annotation',
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Add PHPDoc with array shape or use @return array'
         });
       }

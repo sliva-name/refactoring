@@ -55,27 +55,55 @@ export class PerformanceAnalyzer {
       const methodText = text;
       const line = node.startPosition.row + 1;
 
-      // Проверка неоптимизированных запросов (учитываем разные способы фильтрации)
-      if (methodText.includes('->get()')) {
+      // Проверка неоптимизированных запросов
+      if (methodText.includes('->get()') || methodText.includes('::get()')) {
+        // Разделяем метод на строки для лучшего анализа
+        const lines = methodText.split('\n');
+        
+        // Проверяем есть ли where условия где-то в методе
         const hasWhere = methodText.includes('->where(') || 
                         methodText.includes('->whereIn(') ||
                         methodText.includes('->whereHas(') ||
-                        methodText.includes('->whereNotNull(');
+                        methodText.includes('->whereNotNull(') ||
+                        methodText.includes('->whereNull(') ||
+                        methodText.includes('->whereBetween(') ||
+                        methodText.includes('->whereDate(') ||
+                        methodText.includes('->whereYear(') ||
+                        methodText.includes('->whereTime(') ||
+                        methodText.includes('::where(');
+        
         const hasLimit = methodText.includes('->limit(') || 
                         methodText.includes('->take(') ||
                         methodText.includes('->paginate(') ||
                         methodText.includes('->simplePaginate(');
         
-        // Только если нет ни фильтрации, ни лимита
-        if (!hasWhere && !hasLimit) {
-          issues.push({
-            type: 'query_without_limit',
-            severity: 'major',
-            message: 'Query fetches all records without WHERE or LIMIT',
-            filePath,
-            line: line,
-            suggestion: 'Add ->where() conditions or ->limit() to prevent loading all records'
-          });
+        const hasWith = methodText.includes('->with(') || 
+                       methodText.includes('::with(') ||
+                       methodText.includes('with([');
+        
+        const hasSelect = methodText.includes('->select(');
+        
+        const hasOrderBy = methodText.includes('->orderBy(');
+        
+        // Если есть ->get() или ::get()
+        const hasGet = methodText.includes('->get()') || methodText.includes('::get()');
+        
+        // Флажим только если:
+        // 1. Есть ->get() 
+        // 2. НЕТ where, limit, with, select
+        // И это не ::get() для справочников
+        if (hasGet && !hasWhere && !hasLimit && !hasWith && !hasSelect) {
+          // НО не флажим если есть orderBy - значит может быть разумное использование
+          if (!hasOrderBy) {
+            issues.push({
+              type: 'query_without_limit',
+              severity: 'major',
+              message: 'Query fetches all records without WHERE or LIMIT',
+              filePath,
+              line: line,
+              suggestion: 'Add ->where() conditions or ->limit() to prevent loading all records'
+            });
+          }
         }
       }
 
@@ -238,16 +266,36 @@ export class PerformanceAnalyzer {
       const methodText = text;
       const line = node.startPosition.row + 1;
 
-      if ((methodText.includes('->get()') || methodText.includes('->first()')) &&
-          !methodText.includes('->select(')) {
-        issues.push({
-          type: 'select_all_columns',
-          severity: 'minor',
-          message: 'Query selects all columns (SELECT *)',
-          filePath,
-          line: line,
-          suggestion: 'Use ->select([\'column1\', \'column2\']) to fetch only needed columns and reduce memory usage'
-        });
+      // Флажим только ->get() без select, где может быть много записей
+      // ->first() обычно возвращает одну запись, SELECT * здесь OK
+      if (methodText.includes('->get()') && !methodText.includes('->select(')) {
+        // НЕ флажим если есть ограничения (where, limit, paginate)
+        const hasFilters = methodText.includes('->where(') || 
+                          methodText.includes('->whereIn(') ||
+                          methodText.includes('->whereHas(') ||
+                          methodText.includes('->whereNotNull(') ||
+                          methodText.includes('->whereNull(') ||
+                          methodText.includes('->whereBetween(') ||
+                          methodText.includes('->whereDate(') ||
+                          methodText.includes('->orderBy(') ||
+                          methodText.includes('->limit(') ||
+                          methodText.includes('->take(') ||
+                          methodText.includes('->paginate(') ||
+                          methodText.includes('->with(') ||
+                          methodText.includes('::with(') ||
+                          methodText.includes('->groupBy(');
+        
+        // Не флажим если запрос явно ограничен
+        if (!hasFilters) {
+          issues.push({
+            type: 'select_all_columns',
+            severity: 'minor',
+            message: 'Query selects all columns (SELECT *)',
+            filePath,
+            line: line,
+            suggestion: 'Use ->select([\'column1\', \'column2\']) to fetch only needed columns and reduce memory usage'
+          });
+        }
       }
     }
 

@@ -140,7 +140,7 @@ export class DuplicationDetector {
           continue;
         }
 
-        const similarity = this.calculateSimilarity(block1.code, block2.code);
+        let similarity = this.calculateSimilarity(block1.code, block2.code);
 
         // Similarity не может быть больше 1.0 (100%)
         if (similarity > 1.0) {

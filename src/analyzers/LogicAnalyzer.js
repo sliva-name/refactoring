@@ -48,6 +48,7 @@ export class LogicAnalyzer {
             message: question,
             filePath,
             line: node.startPosition.row + 1,
+            endLine: node.endPosition.row + 1,
             suggestion: 'Review this logic for clarity and potential improvements'
           });
         });
@@ -67,6 +68,7 @@ export class LogicAnalyzer {
           message: `High cyclomatic complexity (${complexity})`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Consider simplifying the logic or extracting parts into separate methods'
         });
       }
@@ -182,6 +184,7 @@ export class LogicAnalyzer {
         message: `Deep nesting detected (depth: ${depth})`,
         filePath,
         line: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
         suggestion: 'Extract deeply nested code into separate methods'
       });
     }
@@ -240,6 +243,7 @@ export class LogicAnalyzer {
         message: `Magic numbers detected: ${magicNumbers.join(', ')}`,
         filePath,
         line: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
         suggestion: 'Consider extracting these numbers into named constants or configuration'
       });
     }

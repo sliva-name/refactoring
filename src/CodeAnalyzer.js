@@ -71,6 +71,15 @@ export class CodeAnalyzer {
       }
     };
 
+    // Собираем все файлы для кросс-анализа
+    const allFilesContent = {};
+    for (const file of files) {
+      const fileData = await this.readFile(file);
+      if (fileData) {
+        allFilesContent[fileData.filePath] = fileData.content;
+      }
+    }
+
     for (const file of files) {
       const fileData = await this.readFile(file);
       if (!fileData) continue;
@@ -79,7 +88,8 @@ export class CodeAnalyzer {
 
       for (const analyzer of analyzers) {
         try {
-          const analyzerResults = analyzer.analyze(fileData.content, fileData.filePath);
+          // Передаем все файлы для ClassConflictAnalyzer и других кросс-анализаторов
+          const analyzerResults = analyzer.analyze(fileData.content, fileData.filePath, allFilesContent);
           if (analyzerResults && analyzerResults.length > 0) {
             results.issues.push(...analyzerResults);
           }

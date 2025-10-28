@@ -81,9 +81,15 @@ export class FileReporter {
         };
       }
       
+      // Вычисляем endLine на основе данных из issue
+      // 1. Используем endLine из issue если он есть
+      // 2. Используем endLine из refactorInfo
+      // 3. Если нет - используем startLine (однострочная проблема)
+      let endLine = issue.endLine || issue.refactorInfo?.endLine || issue.line || 0;
+      
       const lineRange = {
         startLine: issue.line || 0,
-        endLine: issue.refactorInfo?.endLine || issue.line || 0
+        endLine: endLine
       };
       
       // Check if this range already exists to avoid duplicates

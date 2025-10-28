@@ -248,9 +248,17 @@ export class CodeSmellDetector {
       const line = node.startPosition.row + 1;
 
       if (visibility === 'private') {
-        const usageCount = (code.match(new RegExp(`->${methodName}\\(`, 'g')) || []).length;
+        // Ищем вызовы метода через $this->method() или $obj->method()
+        const thisUsagePattern = new RegExp(`\\$this->${methodName}\\(`, 'g');
+        const objUsagePattern = new RegExp(`\\$\\w+->${methodName}\\(`, 'g');
         
-        if (usageCount <= 1) {
+        const thisUsages = (code.match(thisUsagePattern) || []).length;
+        const objUsages = (code.match(objUsagePattern) || []).length;
+        const totalUsages = thisUsages + objUsages;
+        
+        // Если использований 0 - метод точно неиспользуется
+        // Если используется через $this - это НОРМАЛЬНО (вызов внутри класса)
+        if (totalUsages === 0) {
           issues.push({
             type: 'unused_private_method',
             severity: 'info',

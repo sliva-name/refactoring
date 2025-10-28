@@ -36,6 +36,9 @@ export class SecurityAnalyzer {
     this.checkPasswordSecurity(code, filePath, tree.rootNode, issues);
     this.checkFileUploadSecurity(code, filePath, tree.rootNode, issues);
     this.checkCsrfProtection(code, filePath, issues);
+    
+    // Проверка extract() один раз на весь файл
+    this.checkExtractUsage(code, filePath, issues);
 
     return issues;
   }
@@ -68,6 +71,7 @@ export class SecurityAnalyzer {
             message: 'Potential SQL Injection: DB::raw() with string interpolation',
             filePath,
             line: line,
+            endLine: node.endPosition.row + 1,
             suggestion: 'Use parameter binding: DB::raw("query WHERE id = ?", [$id]) or use Query Builder methods'
           });
         }
@@ -86,6 +90,7 @@ export class SecurityAnalyzer {
             message: 'Potential SQL Injection: Raw query methods with variables',
             filePath,
             line: line,
+            endLine: node.endPosition.row + 1,
             suggestion: 'Use parameter binding with ? placeholders and pass variables as second argument'
           });
         }
@@ -99,6 +104,7 @@ export class SecurityAnalyzer {
           message: 'Potential SQL Injection: String concatenation in query',
           filePath,
           line: line,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Never concatenate user input into SQL queries. Use parameter binding'
         });
       }
@@ -132,6 +138,7 @@ export class SecurityAnalyzer {
           message: 'Potential XSS: Unescaped output with {!! !!}',
           filePath,
           line: line,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Use {{ }} for automatic escaping unless you explicitly trust the content'
         });
       }
@@ -149,6 +156,7 @@ export class SecurityAnalyzer {
           message: 'User input directly in JSON response without validation',
           filePath,
           line: line,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Validate and sanitize user input before outputting, use Resources for API responses'
         });
       }
@@ -229,25 +237,104 @@ export class SecurityAnalyzer {
           message: `Dangerous function ${functionName}() can lead to code execution vulnerabilities`,
           filePath,
           line: line,
+          endLine: line,  // Одна строка для вызова функции
           suggestion: `Avoid using ${functionName}(). If absolutely necessary, sanitize all inputs rigorously`
         });
       }
     }
 
-    if (code.includes('extract(') && code.includes('$_')) {
-      issues.push({
-        type: 'dangerous_extract',
-        severity: 'major',
-        message: 'Using extract() with superglobals can overwrite variables',
-        filePath,
-        line: 1,
-        suggestion: 'Avoid extract() or use EXTR_SKIP flag and never with user input'
-      });
-    }
-
     for (const child of node.children) {
       this.checkDangerousFunctions(code, filePath, child, issues);
     }
+  }
+
+  /**
+   * Проверяет использование extract() с суперглобальными переменными
+   *
+   * @param string code
+   * @param string filePath
+   * @param array issues
+   * @return void
+   */
+  checkExtractUsage(code, filePath, issues) {
+    // Проверяем только если есть extract()
+    if (code.includes('extract(')) {
+      // Находим все использования extract() через AST для точной локализации
+      const tree = this.parser.parse(code);
+      
+      const extractInfo = [];
+      
+      const findExtractCalls = (node) => {
+        if (node.type === 'function_call_expression') {
+          const functionName = this.getFunctionName(node);
+          const nodeText = node.text || '';
+          
+          if (functionName === 'extract' || nodeText.includes('extract($_')) {
+            // Получаем аргумент extract()
+            const args = this.getFunctionArguments(node);
+            const line = node.startPosition.row + 1;
+            const endLine = node.endPosition.row + 1;
+            
+            // Проверяем аргумент на наличие суперглобальных
+            const hasSuperGlobal = nodeText.includes('$_GET') || 
+                                  nodeText.includes('$_POST') || 
+                                  nodeText.includes('$_REQUEST') || 
+                                  nodeText.includes('$_ENV') ||
+                                  nodeText.includes('$_SERVER') || 
+                                  nodeText.includes('$_FILES');
+            
+            extractInfo.push({
+              line,
+              endLine,
+              hasSuperGlobal
+            });
+          }
+        }
+        
+        for (const child of node.children || []) {
+          findExtractCalls(child);
+        }
+      };
+      
+      findExtractCalls(tree.rootNode);
+      
+      // Добавляем проблему только один раз на каждый вызов extract()
+      extractInfo.forEach(info => {
+        const message = info.hasSuperGlobal
+          ? 'Using extract() with superglobals can overwrite variables'
+          : 'Using extract() is dangerous and can cause security issues';
+          
+        issues.push({
+          type: 'dangerous_extract',
+          severity: 'major',
+          message: message,
+          filePath,
+          line: info.line,
+          endLine: info.endLine,
+          suggestion: 'Avoid extract() or use EXTR_SKIP flag and never with user input'
+        });
+      });
+    }
+  }
+  
+  getFunctionArguments(node) {
+    const args = [];
+    let foundArgs = false;
+    
+    for (const child of node.children || []) {
+      if (foundArgs && child.type === 'arguments') {
+        // Извлекаем текстовые аргументы
+        const argText = child.text || '';
+        if (argText.length > 0) {
+          args.push(argText);
+        }
+      }
+      if (child.type === 'call_expression') {
+        foundArgs = true;
+      }
+    }
+    
+    return args;
   }
 
   /**
@@ -281,14 +368,15 @@ export class SecurityAnalyzer {
 
       // Флагим только если есть присвоение пароля БЕЗ хеширования
       if (hasPasswordAssignment && !hasHashing) {
-        issues.push({
-          type: 'password_not_hashed',
-          severity: 'critical',
-          message: 'Password stored without hashing',
-          filePath,
-          line: line,
-          suggestion: 'Use Hash::make($password) or bcrypt($password) to hash passwords'
-        });
+      issues.push({
+        type: 'password_not_hashed',
+        severity: 'critical',
+        message: 'Password stored without hashing',
+        filePath,
+        line: line,
+        endLine: node.endPosition.row + 1,
+        suggestion: 'Use Hash::make($password) or bcrypt($password) to hash passwords'
+      });
       }
 
       if (methodText.includes('md5') || methodText.includes('sha1')) {
@@ -298,6 +386,7 @@ export class SecurityAnalyzer {
           message: 'Using weak hashing algorithm (md5/sha1)',
           filePath,
           line: line,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Use bcrypt or Hash::make() for password hashing'
         });
       }
@@ -336,6 +425,7 @@ export class SecurityAnalyzer {
             message: 'File upload without validation',
             filePath,
             line: line,
+            endLine: node.endPosition.row + 1,
             suggestion: 'Validate file type, size and extension. Use Form Request validation with mimes: and max: rules'
           });
         }
@@ -347,6 +437,7 @@ export class SecurityAnalyzer {
             message: 'Using move() instead of Laravel storage methods',
             filePath,
             line: line,
+            endLine: node.endPosition.row + 1,
             suggestion: 'Use $request->file()->store() or storeAs() for secure file handling'
           });
         }
@@ -387,8 +478,17 @@ export class SecurityAnalyzer {
    */
   getFunctionName(node) {
     for (const child of node.children) {
-      if (child.type === 'name') {
+      // Ищем qualified_name или name в children
+      if (child.type === 'name' || child.type === 'qualified_name') {
         return child.text;
+      }
+      // Возможно имя вложено глубже
+      if (child.children) {
+        for (const grandchild of child.children) {
+          if (grandchild.type === 'name') {
+            return grandchild.text;
+          }
+        }
       }
     }
     return '';

@@ -15,6 +15,7 @@ import { PerformanceAnalyzer } from './src/analyzers/PerformanceAnalyzer.js';
 import { CodeSmellDetector } from './src/analyzers/CodeSmellDetector.js';
 import { DuplicationDetector } from './src/analyzers/DuplicationDetector.js';
 import { LogicQuestionGenerator } from './src/analyzers/LogicQuestionGenerator.js';
+import { ClassConflictAnalyzer } from './src/analyzers/ClassConflictAnalyzer.js';
 import { Linter } from './src/linters/Linter.js';
 import { Reporter } from './src/Reporter.js';
 import { CursorPromptGenerator } from './src/CursorPromptGenerator.js';
@@ -120,6 +121,8 @@ async function main() {
     specificFiles: specificFiles
   });
 
+  const classConflictAnalyzer = new ClassConflictAnalyzer();
+  
   const analyzers = [
     new SecurityAnalyzer(),
     new NPlusOneDetector(),
@@ -132,7 +135,8 @@ async function main() {
     new ArchitectureAnalyzer(),
     new TraitScopeAnalyzer(),
     new DuplicationDetector(),
-    new CodeSmellDetector()
+    new CodeSmellDetector(),
+    classConflictAnalyzer
   ];
 
   const linter = new Linter({ fix: argv.fix });

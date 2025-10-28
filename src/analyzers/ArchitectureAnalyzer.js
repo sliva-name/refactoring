@@ -79,6 +79,7 @@ export class ArchitectureAnalyzer {
           message: `Controller method "${methodName}" contains direct model logic`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Move model queries to Service Layer or Repository'
         });
       }
@@ -90,6 +91,7 @@ export class ArchitectureAnalyzer {
           message: `Controller method "${methodName}" is doing too much work`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Extract business logic to Service Layer'
         });
       }
@@ -101,6 +103,7 @@ export class ArchitectureAnalyzer {
           message: `Controller method "${methodName}" uses raw database queries`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Use Eloquent ORM or move to Repository/Service layer'
         });
       }
@@ -121,6 +124,7 @@ export class ArchitectureAnalyzer {
           message: `Controller method "${methodName}" may be missing proper response`,
           filePath,
           line: node.startPosition.row + 1,
+          endLine: node.endPosition.row + 1,
           suggestion: 'Ensure method returns proper Laravel Response (view/json/redirect)'
         });
       }
